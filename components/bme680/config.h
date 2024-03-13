@@ -1,11 +1,13 @@
 #pragma once
 #include "driver/i2c_master.h"
-#include "driver/gpio.h"
+
+#define REGISTER_CTRL_MEAS 0x74
+#define REGISTER_CTRL_HUM 0x72
 
 #define I2C_PORT 0
 #define GLITCH_IGNORE_COUNT 7
 #define I2C_DEVICE_ADDRESS 0b1110111
-#define I2C_CLOCK_HZ (1 * 100)
+#define I2C_CLOCK_HZ (400 * 1000)
 
 static const i2c_master_bus_config_t i2c_bus_config = {
     .clk_source = I2C_CLK_SRC_DEFAULT,

@@ -5,5 +5,7 @@
 
 void app_main() {
     bme680_device_t bme680 = {};
-    ESP_ERROR_CHECK(init_bme680_device(SCL_GPIO, SDA_GPIO, &bme680));
+    ESP_ERROR_CHECK(init_bme680_device(&bme680, SCL_GPIO, SDA_GPIO));
+
+    ESP_ERROR_CHECK(set_oversampling(&bme680, OS_4, OS_4, OS_4));
 }
