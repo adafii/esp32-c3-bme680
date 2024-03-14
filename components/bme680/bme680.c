@@ -1,16 +1,21 @@
 #include "bme680.h"
 #include "config.h"
 #include "esp_check.h"
-
-#define BUS_ERROR_MSG "Error when creating I2C bus"
-#define PROBE_ERROR_MSG "BME680 was not found"
-#define DEVICE_ERROR_MSG "Error when adding I2C device"
-#define SENSOR_INIT_ERROR_MSG "Error when trying to init sensor"
-#define TRANSMIT_ERROR_MSG "I2C transmit error"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char* TAG = "BME860";
 
+// Private API
+esp_err_t get_temperature(bme680_device_t* bme680_device, measurement_t* measurement);
+
+// Public API definitions
+
 esp_err_t init_bme680_device(bme680_device_t* bme680_device, gpio_num_t scl_gpio, gpio_num_t sda_gpio) {
+    if (!bme680_device) {
+        return ESP_FAIL;
+    }
+
     i2c_master_bus_config_t user_bus_config = i2c_bus_config;
     user_bus_config.scl_io_num = scl_gpio;
     user_bus_config.sda_io_num = sda_gpio;
@@ -35,6 +40,10 @@ esp_err_t set_oversampling(bme680_device_t* bme680_device,
                            oversampling_t temperature,
                            oversampling_t pressure,
                            oversampling_t humidity) {
+    if (!bme680_device) {
+        return ESP_FAIL;
+    }
+
     i2c_master_dev_handle_t* device = &bme680_device->device_handle;
     uint8_t ctrl_hum = 0;
     uint8_t ctrl_meas = 0;
@@ -58,6 +67,10 @@ esp_err_t set_oversampling(bme680_device_t* bme680_device,
 }
 
 esp_err_t set_iir_filter(bme680_device_t* bme680_device, coefficient_t coefficient) {
+    if (!bme680_device) {
+        return ESP_FAIL;
+    }
+
     i2c_master_dev_handle_t* device = &bme680_device->device_handle;
     uint8_t config = 0;
 
@@ -75,6 +88,10 @@ esp_err_t set_iir_filter(bme680_device_t* bme680_device, coefficient_t coefficie
 }
 
 esp_err_t disable_gas(bme680_device_t* bme680_device) {
+    if (!bme680_device) {
+        return ESP_FAIL;
+    }
+
     i2c_master_dev_handle_t* device = &bme680_device->device_handle;
     uint8_t ctrl_gas_0 = 0;
     uint8_t ctrl_gas_1 = 0;
@@ -93,6 +110,47 @@ esp_err_t disable_gas(bme680_device_t* bme680_device) {
     uint8_t write_buffer[4] = {REGISTER_CTRL_GAS_0, ctrl_gas_0, REGISTER_CTRL_GAS_1, ctrl_gas_1};
     ESP_RETURN_ON_ERROR(i2c_master_transmit(*device, write_buffer, sizeof(write_buffer), I2C_MAX_WAIT), TAG,
                         TRANSMIT_ERROR_MSG);
+
+    return ESP_OK;
+}
+
+esp_err_t measure(bme680_device_t* bme680_device, measurement_t* measurement) {
+    if (!bme680_device || !measurement) {
+        return ESP_FAIL;
+    }
+
+    i2c_master_dev_handle_t* device = &bme680_device->device_handle;
+    uint8_t ctrl_meas = 0;
+
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(*device, &REGISTER_CTRL_MEAS, sizeof(REGISTER_CTRL_MEAS),
+                                                    &ctrl_meas, sizeof(ctrl_meas), I2C_MAX_WAIT),
+                        TAG, TRANSMIT_ERROR_MSG);
+
+    ctrl_meas = (ctrl_meas & 0b11111100) | 0b01;
+
+    uint8_t write_buffer[2] = {REGISTER_CTRL_MEAS, ctrl_meas};
+    ESP_RETURN_ON_ERROR(i2c_master_transmit(*device, write_buffer, sizeof(write_buffer), I2C_MAX_WAIT), TAG,
+                        TRANSMIT_ERROR_MSG);
+
+    uint8_t meas_status_0 = 1 << 5;
+    TickType_t last_wake_time = xTaskGetTickCount();
+
+    while (meas_status_0 & 1 << 5) {
+        xTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(MEASURE_POLL_MS));
+
+        ESP_RETURN_ON_ERROR(
+            i2c_master_transmit_receive(*device, &REGISTER_MEAS_STATUS_0, sizeof(REGISTER_MEAS_STATUS_0),
+                                        &meas_status_0, sizeof(meas_status_0), I2C_MAX_WAIT),
+            TAG, TRANSMIT_ERROR_MSG);
+    }
+
+    return ESP_OK;
+}
+
+// Private API definitions
+
+esp_err_t get_temperature(bme680_device_t* bme680_device, measurement_t* measurement) {
+
 
     return ESP_OK;
 }

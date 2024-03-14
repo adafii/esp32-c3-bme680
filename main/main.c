@@ -9,4 +9,7 @@ void app_main() {
 
     ESP_ERROR_CHECK(set_oversampling(&bme680, OS_4, OS_4, OS_4));
     ESP_ERROR_CHECK(set_iir_filter(&bme680, COEFF_31));
+
+    measurement_t measurement = {};
+    ESP_ERROR_CHECK(measure(&bme680, &measurement));
 }

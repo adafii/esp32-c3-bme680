@@ -27,6 +27,13 @@ typedef struct {
     i2c_master_dev_handle_t device_handle;
 } bme680_device_t;
 
+typedef struct {
+    double temperature;
+    double pressure;
+    double humidity;
+    double gas;
+} measurement_t;
+
 esp_err_t init_bme680_device(bme680_device_t* bme680_device, gpio_num_t scl_gpio, gpio_num_t sda_gpio);
 
 esp_err_t set_oversampling(bme680_device_t* bme680_device,
@@ -37,3 +44,5 @@ esp_err_t set_oversampling(bme680_device_t* bme680_device,
 esp_err_t set_iir_filter(bme680_device_t* bme680_device, coefficient_t coefficient);
 
 esp_err_t disable_gas(bme680_device_t* bme680_device);
+
+esp_err_t measure(bme680_device_t* bme680_device, measurement_t* measurement);
