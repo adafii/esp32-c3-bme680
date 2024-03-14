@@ -7,7 +7,7 @@
 #define I2C_DEVICE_ADDRESS 0b1110111
 #define I2C_CLOCK_HZ (400 * 1000)
 #define I2C_MAX_WAIT 10
-#define MEASURE_POLL_MS 40
+#define MEASURE_POLL_MS 10
 
 #define BUS_ERROR_MSG "Error when creating I2C bus"
 #define PROBE_ERROR_MSG "BME680 was not found"
@@ -16,11 +16,15 @@
 #define TRANSMIT_ERROR_MSG "I2C transmit error"
 
 static const uint8_t REGISTER_MEAS_STATUS_0 = 0x1D;
+static const uint8_t REGISTER_TEMP_MSB = 0x22;
 static const uint8_t REGISTER_CTRL_GAS_0 = 0x70;
 static const uint8_t REGISTER_CTRL_GAS_1 = 0x71;
 static const uint8_t REGISTER_CTRL_HUM = 0x72;
 static const uint8_t REGISTER_CTRL_MEAS = 0x74;
 static const uint8_t REGISTER_CONFIG = 0x75;
+static const uint8_t REGISTER_PAR_T2 = 0x8A;
+static const uint8_t REGISTER_PAR_T3 = 0x8C;
+static const uint8_t REGISTER_PAR_T1 = 0xE9;
 
 static const oversampling_t DEFAULT_OS = OS_1;
 

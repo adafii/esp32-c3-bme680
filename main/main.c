@@ -7,8 +7,8 @@ void app_main() {
     bme680_device_t bme680 = {};
     ESP_ERROR_CHECK(init_bme680_device(&bme680, SCL_GPIO, SDA_GPIO));
 
-    ESP_ERROR_CHECK(set_oversampling(&bme680, OS_4, OS_4, OS_4));
-    ESP_ERROR_CHECK(set_iir_filter(&bme680, COEFF_31));
+    ESP_ERROR_CHECK(set_oversampling(&bme680, OS_1, OS_1, OS_1));
+    ESP_ERROR_CHECK(set_iir_filter(&bme680, COEFF_15));
 
     measurement_t measurement = {};
     ESP_ERROR_CHECK(measure(&bme680, &measurement));

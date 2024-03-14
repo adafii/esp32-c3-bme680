@@ -8,6 +8,7 @@ static const char* TAG = "BME860";
 
 // Private API
 esp_err_t get_temperature(bme680_device_t* bme680_device, measurement_t* measurement);
+esp_err_t read_20_bit_raw(bme680_device_t* bme680_device, uint32_t* read_value, uint8_t start_address);
 
 // Public API definitions
 
@@ -133,6 +134,7 @@ esp_err_t measure(bme680_device_t* bme680_device, measurement_t* measurement) {
                         TRANSMIT_ERROR_MSG);
 
     uint8_t meas_status_0 = 1 << 5;
+
     TickType_t last_wake_time = xTaskGetTickCount();
 
     while (meas_status_0 & 1 << 5) {
@@ -144,13 +146,60 @@ esp_err_t measure(bme680_device_t* bme680_device, measurement_t* measurement) {
             TAG, TRANSMIT_ERROR_MSG);
     }
 
+    get_temperature(bme680_device, measurement);
+
     return ESP_OK;
 }
 
 // Private API definitions
 
 esp_err_t get_temperature(bme680_device_t* bme680_device, measurement_t* measurement) {
+    i2c_master_dev_handle_t* device = &bme680_device->device_handle;
 
+    uint32_t raw_temperature = 0;
+    read_20_bit_raw(bme680_device, &raw_temperature, REGISTER_TEMP_MSB);
+
+    uint8_t par_t1_buffer[2] = {};
+    uint8_t par_t2_buffer[2] = {};
+    uint8_t par_t3 = 0;
+
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(*device, &REGISTER_PAR_T1, sizeof(REGISTER_PAR_T1), par_t1_buffer,
+                                                    sizeof(par_t1_buffer), I2C_MAX_WAIT),
+                        TAG, TRANSMIT_ERROR_MSG);
+
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(*device, &REGISTER_PAR_T2, sizeof(REGISTER_PAR_T2), par_t2_buffer,
+                                                    sizeof(par_t2_buffer), I2C_MAX_WAIT),
+                        TAG, TRANSMIT_ERROR_MSG);
+
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(*device, &REGISTER_PAR_T3, sizeof(REGISTER_PAR_T3), &par_t3,
+                                                    sizeof(par_t3), I2C_MAX_WAIT),
+                        TAG, TRANSMIT_ERROR_MSG);
+
+    uint16_t par_t1 = par_t1_buffer[0] << 8 | par_t1_buffer[1];
+    int16_t par_t2 = (int16_t)(par_t2_buffer[0] << 8 | par_t2_buffer[1]);
+
+    int64_t var1 = ((int32_t)raw_temperature >> 3) - ((int32_t)par_t1 << 1);
+    int64_t var2 = (var1 * (int32_t)par_t2) >> 11;
+    int64_t var3 = ((var1 >> 1) * (var1 >> 1)) >> 12;
+    var3 = ((var3) * ((int32_t)par_t3 << 4)) >> 14;
+    int32_t t_fine = (int32_t)(var2 + var3);
+    int16_t temperature = (int16_t)(((t_fine * 5) + 128) >> 8);
+
+    printf("%x\n%x\n%x\n%x\n", (unsigned int)raw_temperature, (unsigned int)par_t1, (unsigned int)par_t2, par_t3);
+    printf("\n%.2f\n", temperature/100.0);
+
+    return ESP_OK;
+}
+
+esp_err_t read_20_bit_raw(bme680_device_t* bme680_device, uint32_t* read_value, uint8_t start_address) {
+    i2c_master_dev_handle_t* device = &bme680_device->device_handle;
+
+    uint8_t read_buffer[3] = {};
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(*device, &start_address, sizeof(start_address), read_buffer,
+                                                    sizeof(read_buffer), I2C_MAX_WAIT),
+                        TAG, TRANSMIT_ERROR_MSG);
+
+    *read_value = read_buffer[0] << 12 | read_buffer[1] << 4 | read_buffer[2] >> 4;
 
     return ESP_OK;
 }
