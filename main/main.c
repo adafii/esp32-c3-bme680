@@ -8,4 +8,5 @@ void app_main() {
     ESP_ERROR_CHECK(init_bme680_device(&bme680, SCL_GPIO, SDA_GPIO));
 
     ESP_ERROR_CHECK(set_oversampling(&bme680, OS_4, OS_4, OS_4));
+    ESP_ERROR_CHECK(set_iir_filter(&bme680, COEFF_31));
 }
